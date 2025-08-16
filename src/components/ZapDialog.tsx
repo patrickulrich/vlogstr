@@ -32,10 +32,11 @@ import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import type { Event } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 
 interface ZapDialogProps {
-  target: Event;
+  target: Event | NostrEvent;
   children?: React.ReactNode;
   className?: string;
 }

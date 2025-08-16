@@ -1,22 +1,44 @@
 import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
+import { useSEO } from '@/hooks/useSEO';
 import NotFound from './NotFound';
 
 export function NIP19Page() {
   const { nip19: identifier } = useParams<{ nip19: string }>();
 
+  let decoded: { type: string } | null = null;
+  let shouldRenderNotFound = false;
+
   if (!identifier) {
-    return <NotFound />;
+    shouldRenderNotFound = true;
+  } else {
+    try {
+      decoded = nip19.decode(identifier);
+    } catch {
+      shouldRenderNotFound = true;
+    }
   }
 
-  let decoded;
-  try {
-    decoded = nip19.decode(identifier);
-  } catch {
+  // Always call hooks before any early returns
+  const type = decoded?.type || 'content';
+  useSEO({
+    title: `${type === 'npub' || type === 'nprofile' ? 'Profile' : 
+           type === 'note' ? 'Note' : 
+           type === 'nevent' ? 'Event' : 
+           type === 'naddr' ? 'Content' : 'View'} - Vlogstr`,
+    description: `View ${type === 'npub' || type === 'nprofile' ? 'user profile' : 
+                      type === 'note' ? 'note' : 
+                      type === 'nevent' ? 'event' : 
+                      type === 'naddr' ? 'addressable content' : 'content'} on the Nostr network via Vlogstr.`,
+    keywords: [
+      'nostr', 'vlogstr', type, 'decentralized', 'blockchain',
+      'social network', 'protocol', 'nip19'
+    ],
+  });
+
+  if (shouldRenderNotFound || !decoded) {
     return <NotFound />;
   }
-
-  const { type } = decoded;
 
   switch (type) {
     case 'npub':

@@ -1,0 +1,20 @@
+User-agent: *
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /profile
+
+Allow: /
+Allow: /discover
+Allow: /feed
+Allow: /video/*
+
+# Block access to sensitive files
+Disallow: /*.json$
+Disallow: /api/
+Disallow: /assets/
+
+# Allow search engines to crawl content
+Allow: /assets/*.css
+Allow: /assets/*.js
+
+Sitemap: https://vlogstr.com/sitemap.xml

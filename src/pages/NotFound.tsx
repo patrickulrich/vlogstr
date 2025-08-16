@@ -1,13 +1,15 @@
-import { useSeoMeta } from "@unhead/react";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { useSEO } from "@/hooks/useSEO";
 
 const NotFound = () => {
   const location = useLocation();
 
-  useSeoMeta({
-    title: "404 - Page Not Found",
-    description: "The page you are looking for could not be found. Return to the home page to continue browsing.",
+  useSEO({
+    title: "404 - Page Not Found | Vlogstr",
+    description: "The page you are looking for could not be found. Return to Vlogstr to continue browsing decentralized videos on the Nostr network.",
+    noIndex: true, // Don't index 404 pages
+    noFollow: true,
   });
 
   useEffect(() => {
