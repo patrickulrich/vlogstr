@@ -5,7 +5,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 
 export interface UserSettings {
   muteVideosByDefault: boolean;
-  disableMutedVideos: boolean;
+  autoplayVideos: boolean;
   hdVideoQuality: boolean;
   uploadQuality: '4k' | '1080' | '720' | '480';
   language: string;
@@ -19,8 +19,8 @@ export interface UserSettings {
 }
 
 const defaultSettings: UserSettings = {
-  muteVideosByDefault: true,
-  disableMutedVideos: false,
+  muteVideosByDefault: false, // Changed to false to match new audio policy
+  autoplayVideos: true,
   hdVideoQuality: true,
   uploadQuality: '1080',
   language: 'en',

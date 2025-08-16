@@ -125,7 +125,7 @@ const Settings = () => {
                 <div className="space-y-0.5">
                   <Label htmlFor="mute-videos">Mute Videos by Default</Label>
                   <p className="text-sm text-muted-foreground">
-                    Start videos muted in the feed
+                    Start videos muted when autoplaying (recommended for first-time users)
                   </p>
                 </div>
                 <Switch 
@@ -137,15 +137,15 @@ const Settings = () => {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="disable-mute">Disable Muted Videos</Label>
+                  <Label htmlFor="autoplay">Enable Video Autoplay</Label>
                   <p className="text-sm text-muted-foreground">
-                    Completely disable muted video playback in feed
+                    Automatically play videos when scrolling through feeds
                   </p>
                 </div>
                 <Switch 
-                  id="disable-mute" 
-                  checked={settings.disableMutedVideos}
-                  onCheckedChange={(checked) => updateSettings({ disableMutedVideos: checked })}
+                  id="autoplay" 
+                  checked={settings.autoplayVideos}
+                  onCheckedChange={(checked) => updateSettings({ autoplayVideos: checked })}
                 />
               </div>
 

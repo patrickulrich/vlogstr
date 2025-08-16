@@ -13,8 +13,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Upload, Video, Image, Loader2, CheckCircle2, AlertCircle, Heart, MessageCircle, Users, PlayCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Upload, Video, Image, Loader2, CheckCircle2, AlertCircle, Heart, MessageCircle, Users, PlayCircle, ChevronDown, Plus, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { MentionInput } from '@/components/MentionInput';
 
 const Dashboard = () => {
   useSeoMeta({
@@ -37,6 +39,15 @@ const Dashboard = () => {
   const [videoType, setVideoType] = useState<'21' | '22'>('21');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Advanced NIP-71 features
+  const [contentWarning, setContentWarning] = useState('');
+  const [hasContentWarning, setHasContentWarning] = useState(false);
+  const [participants, setParticipants] = useState<Array<{pubkey: string, relay?: string}>>([]);
+  const [referenceLinks, setReferenceLinks] = useState<string[]>(['']);
+  const [segments, setSegments] = useState<Array<{start: string, end: string, title: string, thumbnail?: string}>>([]);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -145,11 +156,51 @@ const Dashboard = () => {
 
       const tags: string[][] = [
         ['title', title],
+        ['published_at', Math.floor(Date.now() / 1000).toString()],
       ];
 
       if (videoDuration > 0) {
         tags.push(['duration', videoDuration.toString()]);
       }
+
+      // Add alt tag for accessibility
+      if (description) {
+        tags.push(['alt', description.substring(0, 200)]); // First 200 chars as alt text
+      }
+
+      // Advanced NIP-71 features
+      if (hasContentWarning && contentWarning.trim()) {
+        tags.push(['content-warning', contentWarning.trim()]);
+      }
+
+      // Add participants
+      participants.forEach(participant => {
+        if (participant.pubkey.trim()) {
+          if (participant.relay?.trim()) {
+            tags.push(['p', participant.pubkey.trim(), participant.relay.trim()]);
+          } else {
+            tags.push(['p', participant.pubkey.trim()]);
+          }
+        }
+      });
+
+      // Add reference links
+      referenceLinks.forEach(link => {
+        if (link.trim()) {
+          tags.push(['r', link.trim()]);
+        }
+      });
+
+      // Add segments/chapters
+      segments.forEach(segment => {
+        if (segment.start && segment.end && segment.title) {
+          if (segment.thumbnail?.trim()) {
+            tags.push(['segment', segment.start, segment.end, segment.title, segment.thumbnail]);
+          } else {
+            tags.push(['segment', segment.start, segment.end, segment.title]);
+          }
+        }
+      });
 
       const imetaTag = ['imeta'];
       if (videoDimensions) imetaTag.push(`dim ${videoDimensions}`);
@@ -188,6 +239,13 @@ const Dashboard = () => {
       setVideoUrl('');
       setThumbnailUrl('');
       setUploadProgress(0);
+      
+      // Reset advanced fields
+      setContentWarning('');
+      setHasContentWarning(false);
+      setParticipants([]);
+      setReferenceLinks(['']);
+      setSegments([]);
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -433,6 +491,223 @@ const Dashboard = () => {
                   disabled={isProcessing || !!thumbnailFile}
                 />
               </div>
+            </div>
+
+            {/* Advanced NIP-71 Features */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Advanced Options (NIP-71)</Label>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  type="button"
+                  onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isAdvancedOpen ? 'rotate-180' : ''}`} />
+                  {isAdvancedOpen ? 'Hide' : 'Show'} Advanced
+                </Button>
+              </div>
+              
+              {isAdvancedOpen && (
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/20 mt-4">
+                  {/* Content Warning */}
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="content-warning" 
+                        checked={hasContentWarning}
+                        onCheckedChange={(checked) => setHasContentWarning(checked === true)}
+                      />
+                      <Label htmlFor="content-warning">Contains mature/NSFW content</Label>
+                    </div>
+                    {hasContentWarning && (
+                      <Input
+                        placeholder="Describe content warning (e.g., violence, nudity)"
+                        value={contentWarning}
+                        onChange={(e) => setContentWarning(e.target.value)}
+                        disabled={isProcessing}
+                      />
+                    )}
+                  </div>
+
+                  {/* Participants */}
+                  <div className="space-y-2">
+                    <Label>Participants (People in the video)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Type @username to mention people you follow, or paste their npub/hex directly
+                    </p>
+                    {participants.map((participant, index) => (
+                      <div key={index} className="flex space-x-2">
+                        <MentionInput
+                          placeholder="@username or paste npub/hex"
+                          value={participant.pubkey}
+                          onChange={(value) => {
+                            const newParticipants = [...participants];
+                            newParticipants[index].pubkey = value;
+                            setParticipants(newParticipants);
+                          }}
+                          disabled={isProcessing}
+                          className="flex-1"
+                        />
+                        <Input
+                          placeholder="Relay URL (optional)"
+                          value={participant.relay || ''}
+                          onChange={(e) => {
+                            const newParticipants = [...participants];
+                            newParticipants[index].relay = e.target.value;
+                            setParticipants(newParticipants);
+                          }}
+                          disabled={isProcessing}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            const newParticipants = participants.filter((_, i) => i !== index);
+                            setParticipants(newParticipants);
+                          }}
+                          disabled={isProcessing}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setParticipants([...participants, { pubkey: '', relay: '' }])}
+                      disabled={isProcessing}
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Participant
+                    </Button>
+                  </div>
+
+                  {/* Reference Links */}
+                  <div className="space-y-2">
+                    <Label>Reference Links</Label>
+                    {referenceLinks.map((link, index) => (
+                      <div key={index} className="flex space-x-2">
+                        <Input
+                          placeholder="https://example.com/related-content"
+                          value={link}
+                          onChange={(e) => {
+                            const newLinks = [...referenceLinks];
+                            newLinks[index] = e.target.value;
+                            setReferenceLinks(newLinks);
+                          }}
+                          disabled={isProcessing}
+                          className="flex-1"
+                        />
+                        {referenceLinks.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              const newLinks = referenceLinks.filter((_, i) => i !== index);
+                              setReferenceLinks(newLinks);
+                            }}
+                            disabled={isProcessing}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReferenceLinks([...referenceLinks, ''])}
+                      disabled={isProcessing}
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Reference Link
+                    </Button>
+                  </div>
+
+                  {/* Segments/Chapters */}
+                  <div className="space-y-2">
+                    <Label>Chapters/Segments (for longer videos)</Label>
+                    {segments.map((segment, index) => (
+                      <div key={index} className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                        <Input
+                          placeholder="00:00:00"
+                          value={segment.start}
+                          onChange={(e) => {
+                            const newSegments = [...segments];
+                            newSegments[index].start = e.target.value;
+                            setSegments(newSegments);
+                          }}
+                          disabled={isProcessing}
+                        />
+                        <Input
+                          placeholder="00:05:30"
+                          value={segment.end}
+                          onChange={(e) => {
+                            const newSegments = [...segments];
+                            newSegments[index].end = e.target.value;
+                            setSegments(newSegments);
+                          }}
+                          disabled={isProcessing}
+                        />
+                        <Input
+                          placeholder="Chapter title"
+                          value={segment.title}
+                          onChange={(e) => {
+                            const newSegments = [...segments];
+                            newSegments[index].title = e.target.value;
+                            setSegments(newSegments);
+                          }}
+                          disabled={isProcessing}
+                          className="md:col-span-2"
+                        />
+                        <Input
+                          placeholder="Thumbnail URL (optional)"
+                          value={segment.thumbnail || ''}
+                          onChange={(e) => {
+                            const newSegments = [...segments];
+                            newSegments[index].thumbnail = e.target.value;
+                            setSegments(newSegments);
+                          }}
+                          disabled={isProcessing}
+                          className="md:col-span-2"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            const newSegments = segments.filter((_, i) => i !== index);
+                            setSegments(newSegments);
+                          }}
+                          disabled={isProcessing}
+                          className="md:col-span-1"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSegments([...segments, { start: '', end: '', title: '', thumbnail: '' }])}
+                      disabled={isProcessing}
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Chapter/Segment
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {isProcessing && (

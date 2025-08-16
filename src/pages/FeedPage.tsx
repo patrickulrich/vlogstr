@@ -5,6 +5,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useReactions } from '@/hooks/useReactions';
 import { useSEO } from '@/hooks/useSEO';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -167,7 +168,7 @@ function VideoPlayer({ event, isActive, isMuted, onMuteToggle, onComment, onShar
       <div className="absolute bottom-0 left-0 right-0 p-4 pb-20 bg-gradient-to-t from-black/80 to-transparent">
         <div className="flex items-end justify-between">
           <div className="flex-1 mr-4">
-            <Link to={`/profile`} className="flex items-center mb-3">
+            <Link to={`/user/${event.pubkey}`} className="flex items-center mb-3">
               <Avatar className="h-10 w-10 mr-3 ring-2 ring-white">
                 {profileImage && <AvatarImage src={profileImage} alt={displayName} />}
                 <AvatarFallback>{displayName[0]?.toUpperCase()}</AvatarFallback>
@@ -309,9 +310,10 @@ const Feed = () => {
   });
 
   const { user } = useCurrentUser();
+  const { settings } = useUserSettings();
   const { data: vlogs, isLoading } = useFollowedVlogs();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(settings.muteVideosByDefault);
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
@@ -319,6 +321,10 @@ const Feed = () => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
+  // Update mute state when settings change
+  useEffect(() => {
+    setIsMuted(settings.muteVideosByDefault);
+  }, [settings.muteVideosByDefault]);
 
   const handleComment = (event: NostrEvent) => {
     setSelectedEvent(event);

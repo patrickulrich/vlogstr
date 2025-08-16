@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { NostrEvent } from '@nostrify/nostrify';
-import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useComments } from '@/hooks/useComments';
 import { CommentForm } from './CommentForm';
@@ -46,7 +45,7 @@ export function Comment({ root, comment, depth = 0, maxDepth = 3, limit }: Comme
             {/* Comment Header */}
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-3">
-                <Link to={`/${nip19.npubEncode(comment.pubkey)}`}>
+                <Link to={`/user/${comment.pubkey}`}>
                   <Avatar className="h-8 w-8 hover:ring-2 hover:ring-primary/30 transition-all cursor-pointer">
                     <AvatarImage src={metadata?.picture} />
                     <AvatarFallback className="text-xs">
@@ -56,7 +55,7 @@ export function Comment({ root, comment, depth = 0, maxDepth = 3, limit }: Comme
                 </Link>
                 <div>
                   <Link 
-                    to={`/${nip19.npubEncode(comment.pubkey)}`}
+                    to={`/user/${comment.pubkey}`}
                     className="font-medium text-sm hover:text-primary transition-colors"
                   >
                     {displayName}

@@ -1,6 +1,6 @@
 # 🎬 Vlogstr - Decentralized Video Platform
 
-**A modern, TikTok-inspired video platform built on the Nostr protocol**
+**A modern, immersive video platform built on the Nostr protocol**
 
 Vlogstr is a censorship-resistant, decentralized video sharing platform that empowers creators to own their content and connect directly with their audience through the Nostr network.
 
@@ -14,8 +14,8 @@ Vlogstr is a censorship-resistant, decentralized video sharing platform that emp
 - **Video Player**: Custom video player with mute controls and overlays
 
 ### 🏠 **User Experience**
-- **TikTok-Inspired UI**: Modern, gradient-rich landing page with "Create. Share. Own." messaging
-- **Feed Experience**: Full-screen video feeds similar to TikTok/Instagram Reels
+- **Modern UI**: Contemporary, gradient-rich landing page with "Create. Share. Own." messaging  
+- **Immersive Feed Experience**: Full-screen vertical video feeds with smooth scrolling
 - **Discover Page**: Trending content discovery with infinite scroll
 - **Personal Feed**: Curated content from creators you follow
 - **Mobile-First**: Responsive design with mobile-optimized interactions
