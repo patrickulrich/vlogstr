@@ -1,12 +1,13 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, VideoIcon, BarChart3, Settings, Compass, Heart, X } from 'lucide-react';
+import { Home, VideoIcon, BarChart3, Settings, Compass, Heart, X, LogIn } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { genUserName } from '@/lib/genUserName';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { cn } from '@/lib/utils';
+import LoginDialog from '@/components/auth/LoginDialog';
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const { user, metadata } = useCurrentUser();
   const isMobile = useIsMobile();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
@@ -65,9 +67,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           })}
         </div>
 
-        {/* Profile Picture */}
-        {user && (
-          <div className="p-4 border-t border-gray-800">
+        {/* Profile Picture or Login Button */}
+        <div className="p-4 border-t border-gray-800">
+          {user ? (
             <Link to="/profile" className="block">
               <Avatar className="h-12 w-12 ring-2 ring-white/20 hover:ring-white/40 transition-all">
                 {profileImage && <AvatarImage src={profileImage} alt={displayName} />}
@@ -76,8 +78,17 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 </AvatarFallback>
               </Avatar>
             </Link>
-          </div>
-        )}
+          ) : (
+            <Button
+              onClick={() => setLoginDialogOpen(true)}
+              className="w-12 h-12 p-0 rounded-lg text-white/80 hover:text-white hover:bg-white/10 bg-transparent border-none"
+              variant="ghost"
+              title="Log In"
+            >
+              <LogIn className="h-6 w-6" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -130,9 +141,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
               </nav>
             </div>
 
-            {/* Profile Section */}
-            {user && (
-              <div className="p-6 border-t border-gray-800">
+            {/* Profile Section or Login Button */}
+            <div className="p-6 border-t border-gray-800">
+              {user ? (
                 <Link 
                   to="/profile" 
                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition-colors"
@@ -149,8 +160,20 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                     <p className="text-white/60 text-xs">View Profile</p>
                   </div>
                 </Link>
-              </div>
-            )}
+              ) : (
+                <Button
+                  onClick={() => {
+                    setLoginDialogOpen(true);
+                    setIsSidebarOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full p-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 bg-transparent border-none justify-start"
+                  variant="ghost"
+                >
+                  <LogIn className="h-5 w-5" />
+                  <span>Log In</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -173,6 +196,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       )}>
         {children}
       </div>
+
+      {/* Login Dialog */}
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={() => setLoginDialogOpen(false)}
+      />
     </div>
   );
 }

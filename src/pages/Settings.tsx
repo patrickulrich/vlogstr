@@ -2,6 +2,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { useLoginActions } from '@/hooks/useLoginActions';
 import { useSEO } from '@/hooks/useSEO';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Settings as SettingsIcon, Server, User, Bell, Palette } from 'lucide-react';
+import { AlertCircle, Settings as SettingsIcon, Server, User, Bell, Palette, LogOut } from 'lucide-react';
 import { RelaySelector } from '@/components/RelaySelector';
 import { EditProfileForm } from '@/components/EditProfileForm';
 import { StructuredData } from '@/components/StructuredData';
@@ -33,6 +34,7 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const { config } = useAppContext();
   const { settings, updateSettings } = useUserSettings();
+  const { logout } = useLoginActions();
 
   if (!user) {
     return (
@@ -55,9 +57,19 @@ const Settings = () => {
   return (
     <div className="max-w-4xl mx-auto p-8">
       <StructuredData data={breadcrumbData} />
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2 text-foreground">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and application preferences</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">Settings</h1>
+          <p className="text-muted-foreground">Manage your account and application preferences</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={logout}
+          className="flex items-center gap-2"
+        >
+          <LogOut className="h-4 w-4" />
+          Log Out
+        </Button>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">

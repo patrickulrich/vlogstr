@@ -21,7 +21,9 @@ import {
   VolumeX,
   Play,
   AlertCircle,
-  Zap
+  Zap,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
 import { formatDistanceToNow } from 'date-fns';
@@ -314,6 +316,8 @@ const Feed = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
 
   const handleComment = (event: NostrEvent) => {
@@ -375,6 +379,32 @@ const Feed = () => {
     };
   }, [vlogs, currentIndex]);
 
+  // Touch handlers for mobile swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isSwipeUp = distance > 50;
+    const isSwipeDown = distance < -50;
+
+    if (!vlogs || vlogs.length === 0) return;
+
+    if (isSwipeUp && currentIndex < vlogs.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    } else if (isSwipeDown && currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
+    }
+  };
+
   if (!user) {
     return (
       <div className="h-screen flex items-center justify-center bg-black">
@@ -415,7 +445,13 @@ const Feed = () => {
   }
 
   return (
-    <div className="relative h-screen overflow-hidden" ref={containerRef}>
+    <div 
+      className="relative h-screen overflow-hidden" 
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Video Container */}
       <div>
         <div 
@@ -435,6 +471,30 @@ const Feed = () => {
           ))}
         </div>
       </div>
+
+      {/* Navigation Arrows - Desktop only */}
+      {vlogs && vlogs.length > 1 && (
+        <div className="hidden md:flex md:flex-col fixed left-24 top-1/2 transform -translate-y-1/2 z-50 gap-4">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="bg-black/50 hover:bg-black/70 text-white border-0 rounded-full w-12 h-12 disabled:opacity-30"
+            onClick={() => currentIndex > 0 && setCurrentIndex(prev => prev - 1)}
+            disabled={currentIndex === 0}
+          >
+            <ChevronUp className="h-6 w-6" />
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon"
+            className="bg-black/50 hover:bg-black/70 text-white border-0 rounded-full w-12 h-12 disabled:opacity-30"
+            onClick={() => currentIndex < vlogs.length - 1 && setCurrentIndex(prev => prev + 1)}
+            disabled={currentIndex === vlogs.length - 1}
+          >
+            <ChevronDown className="h-6 w-6" />
+          </Button>
+        </div>
+      )}
 
 
       {/* Modals */}

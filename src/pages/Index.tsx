@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -5,6 +6,7 @@ import { Video, Heart, Users, Zap, Play, ArrowRight, Sparkles, Globe } from 'luc
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSEO } from '@/hooks/useSEO';
 import { StructuredData } from '@/components/StructuredData';
+import LoginDialog from '@/components/auth/LoginDialog';
 
 const Index = () => {
   const { generateWebsiteSchema, generateOrganizationSchema } = useSEO({
@@ -20,6 +22,7 @@ const Index = () => {
   });
 
   const { user } = useCurrentUser();
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -76,7 +79,12 @@ const Index = () => {
                 </Button>
               </Link>
             ) : (
-              <Button size="lg" variant="outline" className="font-bold px-8 py-4 text-lg rounded-full border-2" disabled>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="font-bold px-8 py-4 text-lg rounded-full border-2"
+                onClick={() => setLoginDialogOpen(true)}
+              >
                 Sign In to Create
               </Button>
             )}
@@ -257,6 +265,13 @@ const Index = () => {
           </p>
         </div>
       </footer>
+
+      {/* Login Dialog */}
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={() => setLoginDialogOpen(false)}
+      />
     </div>
   );
 };
