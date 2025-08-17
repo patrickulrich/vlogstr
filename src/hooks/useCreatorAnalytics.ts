@@ -21,9 +21,61 @@ export function useCreatorAnalytics() {
         }
       ], { signal });
       
-      return events;
+      // Sort by creation time, newest first
+      return events.sort((a, b) => b.created_at - a.created_at);
     },
     enabled: !!user,
+  });
+
+  // Get individual video analytics
+  const { data: videoAnalytics } = useQuery({
+    queryKey: ['video-analytics', user?.pubkey, userVideos],
+    queryFn: async (c) => {
+      if (!user || !userVideos || userVideos.length === 0) return [];
+      
+      const videoIds = userVideos.map(v => v.id);
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
+      
+      // Get all reactions and comments for these videos
+      const [reactions, comments] = await Promise.all([
+        nostr.query([
+          {
+            kinds: [7], // NIP-25 reactions
+            '#e': videoIds,
+            limit: 2000,
+          }
+        ], { signal }),
+        nostr.query([
+          {
+            kinds: [1, 1111], // Regular notes and NIP-22 comments
+            '#e': videoIds,
+            limit: 2000,
+          }
+        ], { signal })
+      ]);
+
+      // Calculate individual video analytics
+      return userVideos.map(video => {
+        const videoReactions = reactions.filter(r => 
+          r.tags.some(tag => tag[0] === 'e' && tag[1] === video.id) &&
+          (r.content === '+' || r.content === '❤️' || r.content === '🤙')
+        );
+        const videoComments = comments.filter(c => 
+          c.tags.some(tag => tag[0] === 'e' && tag[1] === video.id)
+        );
+
+        const titleTag = video.tags.find(tag => tag[0] === 'title');
+        const title = titleTag?.[1] || 'Untitled Video';
+        
+        return {
+          video,
+          title,
+          likes: videoReactions.length,
+          comments: videoComments.length,
+        };
+      });
+    },
+    enabled: !!user && !!userVideos && userVideos.length > 0,
   });
 
   // Get total likes (reactions) for user's videos
@@ -101,6 +153,7 @@ export function useCreatorAnalytics() {
     totalLikes: totalLikes || 0,
     totalComments: totalComments || 0,
     followerCount: followerCount || 0,
+    videoAnalytics: videoAnalytics || [],
     isLoading: !userVideos || totalLikes === undefined || totalComments === undefined || followerCount === undefined,
   };
 }

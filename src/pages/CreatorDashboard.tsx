@@ -12,10 +12,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Video, Image, Loader2, CheckCircle2, AlertCircle, BarChart3, Heart, MessageCircle, Users } from 'lucide-react';
+import { Upload, Video, Image, Loader2, CheckCircle2, AlertCircle, BarChart3, Heart, MessageCircle, Users, MoreHorizontal, Trash2, Calendar, Clock } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useCreatorAnalytics } from '@/hooks/useCreatorAnalytics';
+import { useUserVideos } from '@/hooks/useUserVideos';
 import { StructuredData } from '@/components/StructuredData';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const CreatorDashboard = () => {
   const { generateBreadcrumbSchema } = useSEO({
@@ -34,7 +36,8 @@ const CreatorDashboard = () => {
   const { toast } = useToast();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { mutate: publishEvent, isPending: isPublishing } = useNostrPublish();
-  const { totalVideos, totalLikes, totalComments, followerCount, isLoading: analyticsLoading } = useCreatorAnalytics();
+  const { totalVideos, totalLikes, totalComments, followerCount, videoAnalytics, isLoading: analyticsLoading } = useCreatorAnalytics();
+  const { videos, isLoading: videosLoading, deleteVideo } = useUserVideos();
 
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -247,13 +250,13 @@ const CreatorDashboard = () => {
             <Upload className="h-4 w-4" />
             Upload
           </TabsTrigger>
+          <TabsTrigger value="videos" className="flex items-center gap-2">
+            <Video className="h-4 w-4" />
+            Videos
+          </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Analytics
-          </TabsTrigger>
-          <TabsTrigger value="content" className="flex items-center gap-2">
-            <Video className="h-4 w-4" />
-            My Content
           </TabsTrigger>
         </TabsList>
 
@@ -482,45 +485,238 @@ const CreatorDashboard = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Performance Overview</CardTitle>
+              <CardTitle>Video Performance</CardTitle>
               <CardDescription>
-                Analytics powered by Nostr protocol data
+                Individual analytics for each of your videos
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12">
-                <BarChart3 className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <div className="space-y-2">
-                  <p className="text-muted-foreground">
-                    Real-time analytics from the Nostr network showing your content performance.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    • Videos: Your published content (kinds 21 & 22)<br/>
-                    • Likes: NIP-25 reactions to your videos<br/>
-                    • Comments: User engagement via replies<br/>
-                    • Followers: People who added you to their contact lists
-                  </p>
+              {analyticsLoading ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-muted-foreground" />
+                  <p className="text-muted-foreground">Loading video analytics...</p>
                 </div>
-              </div>
+              ) : videoAnalytics.length === 0 ? (
+                <div className="text-center py-12">
+                  <BarChart3 className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <div className="space-y-2">
+                    <p className="text-muted-foreground">
+                      No videos yet. Upload your first video to see analytics!
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Analytics will show likes, comments, and engagement metrics for each video.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {videoAnalytics.map((item) => {
+                    const imetaTag = item.video.tags.find(tag => tag[0] === 'imeta');
+                    const thumbnailUrl = imetaTag?.find(part => part.startsWith('image '))?.substring(6);
+                    const durationTag = item.video.tags.find(tag => tag[0] === 'duration');
+                    const duration = durationTag?.[1] ? parseInt(durationTag[1]) : null;
+                    const videoType = item.video.kind === 21 ? 'Horizontal' : 'Vertical';
+                    const createdDate = new Date(item.video.created_at * 1000);
+
+                    return (
+                      <div
+                        key={item.video.id}
+                        className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative w-20 h-14 bg-muted rounded-md overflow-hidden flex-shrink-0">
+                          {thumbnailUrl ? (
+                            <img
+                              src={thumbnailUrl}
+                              alt={item.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Video className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          {duration && (
+                            <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
+                              {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Video Details */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium truncate">{item.title}</h3>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {createdDate.toLocaleDateString()}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Video className="h-3 w-3" />
+                              {videoType}
+                            </span>
+                            {duration && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {Math.floor(duration / 60)}m {duration % 60}s
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Analytics */}
+                        <div className="flex items-center space-x-6 text-sm">
+                          <div className="text-center">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Heart className="h-4 w-4" />
+                              <span className="font-medium">{item.likes}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Likes</p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <MessageCircle className="h-4 w-4" />
+                              <span className="font-medium">{item.comments}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Comments</p>
+                          </div>
+                        </div>
+
+                        {/* View Link */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(`/video/${item.video.id}`, '_blank')}
+                          className="flex-shrink-0"
+                        >
+                          <Video className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="content">
+        <TabsContent value="videos">
           <Card>
             <CardHeader>
-              <CardTitle>My Vlogs</CardTitle>
+              <CardTitle>My Videos</CardTitle>
               <CardDescription>
-                Manage your uploaded content
+                Manage your uploaded video content
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12">
-                <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  Your uploaded vlogs will appear here. Start by uploading your first video!
-                </p>
-              </div>
+              {videosLoading ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-muted-foreground" />
+                  <p className="text-muted-foreground">Loading your videos...</p>
+                </div>
+              ) : videos.length === 0 ? (
+                <div className="text-center py-12">
+                  <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    Your uploaded vlogs will appear here. Start by uploading your first video!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {videos.map((video) => {
+                    const titleTag = video.tags.find(tag => tag[0] === 'title');
+                    const title = titleTag?.[1] || 'Untitled Video';
+                    const durationTag = video.tags.find(tag => tag[0] === 'duration');
+                    const duration = durationTag?.[1] ? parseInt(durationTag[1]) : null;
+                    const imetaTag = video.tags.find(tag => tag[0] === 'imeta');
+                    const thumbnailUrl = imetaTag?.find(part => part.startsWith('image '))?.substring(6);
+                    const videoType = video.kind === 21 ? 'Horizontal' : 'Vertical';
+                    const createdDate = new Date(video.created_at * 1000);
+
+                    return (
+                      <div
+                        key={video.id}
+                        className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative w-24 h-16 bg-muted rounded-md overflow-hidden flex-shrink-0">
+                          {thumbnailUrl ? (
+                            <img
+                              src={thumbnailUrl}
+                              alt={title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Video className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          {duration && (
+                            <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
+                              {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Video Details */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium truncate">{title}</h3>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {createdDate.toLocaleDateString()}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Video className="h-3 w-3" />
+                              {videoType}
+                            </span>
+                            {duration && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {Math.floor(duration / 60)}m {duration % 60}s
+                              </span>
+                            )}
+                          </div>
+                          {video.content && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {video.content}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Actions Menu */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-[160px]">
+                            <DropdownMenuItem 
+                              onClick={() => window.open(`/video/${video.id}`, '_blank')}
+                            >
+                              <Video className="h-4 w-4 mr-2" />
+                              View Video
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                if (confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+                                  deleteVideo(video);
+                                }
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

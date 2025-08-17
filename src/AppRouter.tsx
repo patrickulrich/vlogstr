@@ -5,7 +5,7 @@ import { SidebarLayout } from "./components/SidebarLayout";
 import Index from "./pages/Index";
 import FeedPage from "./pages/FeedPage";
 import Discover from "./pages/Discover";
-import Dashboard from "./pages/Dashboard";
+import CreatorDashboard from "./pages/CreatorDashboard";
 import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import Settings from "./pages/Settings";
@@ -21,7 +21,7 @@ export function AppRouter() {
         <Route path="/" element={<SidebarLayout><Index /></SidebarLayout>} />
         <Route path="/feed" element={<SidebarLayout><FeedPage /></SidebarLayout>} />
         <Route path="/discover" element={<SidebarLayout><Discover /></SidebarLayout>} />
-        <Route path="/dashboard" element={<SidebarLayout><Dashboard /></SidebarLayout>} />
+        <Route path="/dashboard" element={<SidebarLayout><CreatorDashboard /></SidebarLayout>} />
         <Route path="/profile" element={<SidebarLayout><Profile /></SidebarLayout>} />
         <Route path="/user/:pubkey" element={<SidebarLayout><UserProfile /></SidebarLayout>} />
         <Route path="/settings" element={<SidebarLayout><Settings /></SidebarLayout>} />
