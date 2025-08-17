@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSEO } from '@/hooks/useSEO';
 import { StructuredData } from '@/components/StructuredData';
 import LoginDialog from '@/components/auth/LoginDialog';
+import SignupDialog from '@/components/auth/SignupDialog';
 
 const Index = () => {
   const { generateWebsiteSchema, generateOrganizationSchema } = useSEO({
@@ -23,6 +24,7 @@ const Index = () => {
 
   const { user } = useCurrentUser();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [signupDialogOpen, setSignupDialogOpen] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -271,6 +273,19 @@ const Index = () => {
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={() => setLoginDialogOpen(false)}
+        onSignup={() => {
+          setLoginDialogOpen(false);
+          setSignupDialogOpen(true);
+        }}
+      />
+      
+      {/* Signup Dialog */}
+      <SignupDialog
+        isOpen={signupDialogOpen}
+        onClose={() => setSignupDialogOpen(false)}
+        onComplete={() => {
+          setSignupDialogOpen(false);
+        }}
       />
     </div>
   );

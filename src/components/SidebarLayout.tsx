@@ -8,6 +8,7 @@ import { genUserName } from '@/lib/genUserName';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { cn } from '@/lib/utils';
 import LoginDialog from '@/components/auth/LoginDialog';
+import SignupDialog from '@/components/auth/SignupDialog';
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -19,6 +20,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const isMobile = useIsMobile();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [signupDialogOpen, setSignupDialogOpen] = useState(false);
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
@@ -202,6 +204,19 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={() => setLoginDialogOpen(false)}
+        onSignup={() => {
+          setLoginDialogOpen(false);
+          setSignupDialogOpen(true);
+        }}
+      />
+      
+      {/* Signup Dialog */}
+      <SignupDialog
+        isOpen={signupDialogOpen}
+        onClose={() => setSignupDialogOpen(false)}
+        onComplete={() => {
+          setSignupDialogOpen(false);
+        }}
       />
     </div>
   );

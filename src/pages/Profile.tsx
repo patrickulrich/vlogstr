@@ -34,8 +34,9 @@ function VlogGrid({ vlogs }: { vlogs: NostrEvent[] }) {
         const duration = vlog.tags.find(([name]) => name === 'duration')?.[1];
 
         return (
-          <Card key={vlog.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="relative aspect-video bg-muted">
+          <Link key={vlog.id} to={`/video/${vlog.id}`} className="block">
+            <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="relative aspect-video bg-muted">
               {thumbnail ? (
                 <img src={thumbnail} alt={title} className="w-full h-full object-cover" />
               ) : (
@@ -48,14 +49,15 @@ function VlogGrid({ vlogs }: { vlogs: NostrEvent[] }) {
                   {Math.floor(parseInt(duration) / 60)}:{(parseInt(duration) % 60).toString().padStart(2, '0')}
                 </div>
               )}
-            </div>
-            <CardHeader className="p-4">
-              <h3 className="font-medium line-clamp-1">{title}</h3>
-              <p className="text-sm text-muted-foreground">
-                {formatDistanceToNow(new Date(vlog.created_at * 1000), { addSuffix: true })}
-              </p>
-            </CardHeader>
-          </Card>
+              </div>
+              <CardHeader className="p-4">
+                <h3 className="font-medium line-clamp-1">{title}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {formatDistanceToNow(new Date(vlog.created_at * 1000), { addSuffix: true })}
+                </p>
+              </CardHeader>
+            </Card>
+          </Link>
         );
       })}
     </div>

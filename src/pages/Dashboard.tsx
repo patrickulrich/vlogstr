@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useUploadFileWithProgress } from '@/hooks/useUploadFileWithProgress';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -27,7 +28,26 @@ const Dashboard = () => {
   const { user } = useCurrentUser();
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
   const { toast } = useToast();
-  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  // Hook for video upload with progress
+  const { mutateAsync: uploadVideoWithProgress } = useUploadFileWithProgress({
+    onProgress: (progress) => {
+      setVideoUploadProgress(progress);
+      console.log(`Video upload progress: ${progress}%`);
+    },
+    timeout: 600000, // 10 minutes for video files
+  });
+  
+  // Hook for thumbnail upload with progress
+  const { mutateAsync: uploadThumbnailWithProgress } = useUploadFileWithProgress({
+    onProgress: (progress) => {
+      setThumbnailUploadProgress(progress);
+      console.log(`Thumbnail upload progress: ${progress}%`);
+    },
+    timeout: 60000, // 1 minute for thumbnails
+  });
+  
+  // Fallback upload without progress for auto-generated thumbnails
+  const { mutateAsync: uploadFile } = useUploadFile();
   const { mutate: publishEvent, isPending: isPublishing } = useNostrPublish();
 
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -37,8 +57,16 @@ const Dashboard = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [videoType, setVideoType] = useState<'21' | '22'>('21');
-  const [uploadProgress, setUploadProgress] = useState(0);
+  // Removed unused uploadProgress - now using individual progress states
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Upload state tracking
+  const [videoUploadStatus, setVideoUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [thumbnailUploadStatus, setThumbnailUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
+  const [thumbnailUploadProgress, setThumbnailUploadProgress] = useState(0);
+  const [uploadedVideoData, setUploadedVideoData] = useState<{url: string, tags: string[][], duration?: number} | null>(null);
+  const [uploadedThumbnailData, setUploadedThumbnailData] = useState<{url: string, tags: string[][]} | null>(null);
   
   // Advanced NIP-71 features
   const [contentWarning, setContentWarning] = useState('');
@@ -53,6 +81,8 @@ const Dashboard = () => {
     if (e.target.files?.[0]) {
       setVideoFile(e.target.files[0]);
       setVideoUrl('');
+      setVideoUploadStatus('idle');
+      setUploadedVideoData(null);
     }
   };
 
@@ -60,6 +90,8 @@ const Dashboard = () => {
     if (e.target.files?.[0]) {
       setThumbnailFile(e.target.files[0]);
       setThumbnailUrl('');
+      setThumbnailUploadStatus('idle');
+      setUploadedThumbnailData(null);
     }
   };
 
@@ -75,6 +107,91 @@ const Dashboard = () => {
     });
   };
 
+  const handleVideoUpload = async () => {
+    if (!videoFile || !user) return;
+    
+    try {
+      setVideoUploadStatus('uploading');
+      setVideoUploadProgress(0);
+      
+      console.log('Starting video upload:', videoFile.name, 'Size:', (videoFile.size / 1024 / 1024).toFixed(2), 'MB');
+      
+      // Get video duration first
+      const duration = await getVideoDuration(videoFile);
+      console.log('Video duration:', duration, 'seconds');
+      
+      // Upload the video with progress tracking
+      console.log('Uploading to Blossom server...');
+      const uploadedTags = await uploadVideoWithProgress(videoFile);
+      console.log('Video uploaded successfully. Tags:', uploadedTags);
+      
+      const videoUrl = uploadedTags[0][1];
+      // Hash and dimensions are available in uploadedTags if needed later
+      
+      setUploadedVideoData({
+        url: videoUrl,
+        tags: uploadedTags,
+        duration
+      });
+      
+      setVideoUploadProgress(100);
+      setVideoUploadStatus('success');
+      
+      toast({
+        title: 'Video uploaded!',
+        description: 'Your video has been uploaded successfully.',
+      });
+    } catch (error) {
+      console.error('Video upload failed:', error);
+      setVideoUploadStatus('error');
+      toast({
+        title: 'Upload Failed',
+        description: error instanceof Error ? error.message : 'Failed to upload video',
+        variant: 'destructive',
+      });
+    } finally {
+      setVideoUploadProgress(0);
+    }
+  };
+
+  const handleThumbnailUpload = async () => {
+    if (!thumbnailFile || !user) return;
+    
+    try {
+      setThumbnailUploadStatus('uploading');
+      setThumbnailUploadProgress(0);
+      
+      console.log('Starting thumbnail upload:', thumbnailFile.name, 'Size:', (thumbnailFile.size / 1024 / 1024).toFixed(2), 'MB');
+      
+      // Upload thumbnail with progress tracking
+      const uploadedTags = await uploadThumbnailWithProgress(thumbnailFile);
+      console.log('Thumbnail uploaded successfully. Tags:', uploadedTags);
+      
+      setUploadedThumbnailData({
+        url: uploadedTags[0][1],
+        tags: uploadedTags
+      });
+      
+      setThumbnailUploadProgress(100);
+      setThumbnailUploadStatus('success');
+      
+      toast({
+        title: 'Thumbnail uploaded!',
+        description: 'Your thumbnail has been uploaded successfully.',
+      });
+    } catch (error) {
+      console.error('Thumbnail upload failed:', error);
+      setThumbnailUploadStatus('error');
+      toast({
+        title: 'Upload Failed',
+        description: error instanceof Error ? error.message : 'Failed to upload thumbnail',
+        variant: 'destructive',
+      });
+    } finally {
+      setThumbnailUploadProgress(0);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -87,10 +204,31 @@ const Dashboard = () => {
       return;
     }
 
-    if (!title || (!videoFile && !videoUrl)) {
+    // Check if we have either uploaded video or URL
+    const hasVideo = uploadedVideoData || videoUrl;
+    if (!title || !hasVideo) {
       toast({
         title: 'Error',
-        description: 'Please provide a title and video',
+        description: 'Please provide a title and upload/provide a video',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if video needs to be uploaded first
+    if (videoFile && !uploadedVideoData) {
+      toast({
+        title: 'Please upload video first',
+        description: 'Click the Upload button next to the video file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (thumbnailFile && !uploadedThumbnailData) {
+      toast({
+        title: 'Please upload thumbnail first',
+        description: 'Click the Upload button next to the thumbnail file',
         variant: 'destructive',
       });
       return;
@@ -98,61 +236,72 @@ const Dashboard = () => {
 
     try {
       setIsProcessing(true);
-      setUploadProgress(10);
+      console.log('Publishing video event...');
 
-      let finalVideoUrl = videoUrl;
-      let finalThumbnailUrl = thumbnailUrl;
-      let videoDuration = 0;
+      const finalVideoUrl = uploadedVideoData?.url || videoUrl;
+      let finalThumbnailUrl = uploadedThumbnailData?.url || thumbnailUrl;
+      const videoDuration = uploadedVideoData?.duration || 0;
       let videoHash = '';
       let videoMimeType = 'video/mp4';
       let videoDimensions = '';
 
-      if (videoFile) {
-        setUploadProgress(20);
-        
-        videoDuration = await getVideoDuration(videoFile);
-        videoMimeType = videoFile.type || 'video/mp4';
-        
-        const uploadedVideoTags = await uploadFile(videoFile);
-        finalVideoUrl = uploadedVideoTags[0][1];
-        
-        const hashTag = uploadedVideoTags.find(tag => tag[0] === 'x');
+      // Extract metadata from uploaded video tags
+      if (uploadedVideoData) {
+        const hashTag = uploadedVideoData.tags.find(tag => tag[0] === 'x');
         if (hashTag) videoHash = hashTag[1];
         
-        const dimTag = uploadedVideoTags.find(tag => tag[0] === 'dim');
+        const dimTag = uploadedVideoData.tags.find(tag => tag[0] === 'dim');
         if (dimTag) videoDimensions = dimTag[1];
         
-        setUploadProgress(60);
+        if (videoFile) {
+          videoMimeType = videoFile.type || 'video/mp4';
+        }
       }
 
-      if (thumbnailFile) {
-        setUploadProgress(70);
-        const uploadedThumbnailTags = await uploadFile(thumbnailFile);
-        finalThumbnailUrl = uploadedThumbnailTags[0][1];
-        setUploadProgress(80);
-      } else if (!finalThumbnailUrl) {
-        const video = document.createElement('video');
-        video.src = finalVideoUrl;
-        video.crossOrigin = 'anonymous';
-        await new Promise(resolve => {
-          video.onloadeddata = resolve;
-        });
-        
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(video, 0, 0);
-        
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            const thumbnailTags = await uploadFile(new File([blob], 'thumbnail.jpg', { type: 'image/jpeg' }));
-            finalThumbnailUrl = thumbnailTags[0][1];
-          }
-        }, 'image/jpeg', 0.8);
+      // Auto-generate thumbnail if needed and no thumbnail provided
+      if (!finalThumbnailUrl && finalVideoUrl) {
+        console.log('Auto-generating thumbnail from video...');
+        try {
+          const video = document.createElement('video');
+          video.src = finalVideoUrl;
+          video.crossOrigin = 'anonymous';
+          await new Promise((resolve, _reject) => {
+            video.onloadeddata = resolve;
+            video.onerror = _reject;
+            setTimeout(() => _reject(new Error('Video load timeout')), 10000);
+          });
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(video, 0, 0);
+          
+          await new Promise<void>((resolve, _reject) => {
+            canvas.toBlob(async (blob) => {
+              if (blob) {
+                try {
+                  console.log('Uploading auto-generated thumbnail...');
+                  const thumbnailTags = await uploadFile(new File([blob], 'thumbnail.jpg', { type: 'image/jpeg' }));
+                  finalThumbnailUrl = thumbnailTags[0][1];
+                  console.log('Auto-generated thumbnail uploaded:', finalThumbnailUrl);
+                  resolve();
+                } catch (err) {
+                  console.error('Failed to upload auto-generated thumbnail:', err);
+                  resolve(); // Continue without thumbnail
+                }
+              } else {
+                resolve();
+              }
+            }, 'image/jpeg', 0.8);
+          });
+        } catch (err) {
+          console.error('Failed to auto-generate thumbnail:', err);
+          // Continue without thumbnail
+        }
       }
 
-      setUploadProgress(90);
+      console.log('Creating event tags...');
 
       const tags: string[][] = [
         ['title', title],
@@ -219,26 +368,29 @@ const Dashboard = () => {
         });
       }
 
+      console.log('Publishing event with tags:', tags);
       publishEvent({
         kind: parseInt(videoType),
         content: description,
         tags,
       });
 
-      setUploadProgress(100);
-
       toast({
         title: 'Success!',
         description: 'Your vlog has been published',
       });
 
+      // Reset form
       setTitle('');
       setDescription('');
       setVideoFile(null);
       setThumbnailFile(null);
       setVideoUrl('');
       setThumbnailUrl('');
-      setUploadProgress(0);
+      setUploadedVideoData(null);
+      setUploadedThumbnailData(null);
+      setVideoUploadStatus('idle');
+      setThumbnailUploadStatus('idle');
       
       // Reset advanced fields
       setContentWarning('');
@@ -247,15 +399,14 @@ const Dashboard = () => {
       setReferenceLinks(['']);
       setSegments([]);
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Publish error:', error);
       toast({
-        title: 'Upload Failed',
-        description: error instanceof Error ? error.message : 'Failed to upload vlog',
+        title: 'Publish Failed',
+        description: error instanceof Error ? error.message : 'Failed to publish vlog',
         variant: 'destructive',
       });
     } finally {
       setIsProcessing(false);
-      setUploadProgress(0);
     }
   };
 
@@ -431,9 +582,60 @@ const Dashboard = () => {
                   </label>
                 </div>
                 {videoFile && (
-                  <div className="flex items-center space-x-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>{videoFile.name}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-sm">
+                        {videoUploadStatus === 'success' ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        ) : videoUploadStatus === 'error' ? (
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <Video className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="truncate max-w-xs">{videoFile.name}</span>
+                        <span className="text-muted-foreground">
+                          ({(videoFile.size / 1024 / 1024).toFixed(1)} MB)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleVideoUpload}
+                        disabled={videoUploadStatus === 'uploading' || videoUploadStatus === 'success' || !user}
+                        variant={videoUploadStatus === 'success' ? 'secondary' : 'default'}
+                      >
+                        {videoUploadStatus === 'uploading' ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : videoUploadStatus === 'success' ? (
+                          <>
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Uploaded
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {videoUploadStatus === 'uploading' && videoUploadProgress > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Uploading video...</span>
+                          <span>{videoUploadProgress}%</span>
+                        </div>
+                        <Progress value={videoUploadProgress} className="h-2" />
+                      </div>
+                    )}
+                    {uploadedVideoData && (
+                      <div className="text-xs text-muted-foreground">
+                        Duration: {uploadedVideoData.duration}s • URL: {uploadedVideoData.url.substring(0, 50)}...
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="relative">
@@ -444,12 +646,21 @@ const Dashboard = () => {
                     <span className="bg-background px-2 text-muted-foreground">Or provide URL</span>
                   </div>
                 </div>
-                <Input
-                  placeholder="https://example.com/video.mp4"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  disabled={isProcessing || !!videoFile}
-                />
+                <div className="flex space-x-2">
+                  <Input
+                    placeholder="https://example.com/video.mp4"
+                    value={videoUrl}
+                    onChange={(e) => {
+                      setVideoUrl(e.target.value);
+                      setUploadedVideoData(null); // Clear uploaded data when URL changes
+                    }}
+                    disabled={isProcessing || !!videoFile}
+                    className="flex-1"
+                  />
+                  {videoUrl && !videoFile && (
+                    <CheckCircle2 className="h-4 w-4 text-green-500 self-center" />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -479,17 +690,77 @@ const Dashboard = () => {
                   </label>
                 </div>
                 {thumbnailFile && (
-                  <div className="flex items-center space-x-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>{thumbnailFile.name}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-sm">
+                        {thumbnailUploadStatus === 'success' ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        ) : thumbnailUploadStatus === 'error' ? (
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <Image className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="truncate max-w-xs">{thumbnailFile.name}</span>
+                        <span className="text-muted-foreground">
+                          ({(thumbnailFile.size / 1024 / 1024).toFixed(1)} MB)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleThumbnailUpload}
+                        disabled={thumbnailUploadStatus === 'uploading' || thumbnailUploadStatus === 'success' || !user}
+                        variant={thumbnailUploadStatus === 'success' ? 'secondary' : 'default'}
+                      >
+                        {thumbnailUploadStatus === 'uploading' ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : thumbnailUploadStatus === 'success' ? (
+                          <>
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Uploaded
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {thumbnailUploadStatus === 'uploading' && thumbnailUploadProgress > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Uploading thumbnail...</span>
+                          <span>{thumbnailUploadProgress}%</span>
+                        </div>
+                        <Progress value={thumbnailUploadProgress} className="h-2" />
+                      </div>
+                    )}
+                    {uploadedThumbnailData && (
+                      <div className="text-xs text-muted-foreground">
+                        URL: {uploadedThumbnailData.url.substring(0, 50)}...
+                      </div>
+                    )}
                   </div>
                 )}
-                <Input
-                  placeholder="https://example.com/thumbnail.jpg (optional URL)"
-                  value={thumbnailUrl}
-                  onChange={(e) => setThumbnailUrl(e.target.value)}
-                  disabled={isProcessing || !!thumbnailFile}
-                />
+                <div className="flex space-x-2">
+                  <Input
+                    placeholder="https://example.com/thumbnail.jpg (optional URL)"
+                    value={thumbnailUrl}
+                    onChange={(e) => {
+                      setThumbnailUrl(e.target.value);
+                      setUploadedThumbnailData(null); // Clear uploaded data when URL changes
+                    }}
+                    disabled={isProcessing || !!thumbnailFile}
+                    className="flex-1"
+                  />
+                  {thumbnailUrl && !thumbnailFile && (
+                    <CheckCircle2 className="h-4 w-4 text-green-500 self-center" />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -710,30 +981,35 @@ const Dashboard = () => {
               )}
             </div>
 
-            {isProcessing && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Uploading...</span>
-                  <span>{uploadProgress}%</span>
-                </div>
-                <Progress value={uploadProgress} />
-              </div>
+            {/* Show upload status summary */}
+            {(uploadedVideoData || uploadedThumbnailData) && (
+              <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800 dark:text-green-200">
+                  Files uploaded successfully. Ready to publish your vlog!
+                </AlertDescription>
+              </Alert>
             )}
 
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isProcessing || isUploading || isPublishing}
+              disabled={isProcessing || isPublishing || videoUploadStatus === 'uploading' || thumbnailUploadStatus === 'uploading'}
             >
-              {isProcessing || isUploading || isPublishing ? (
+              {isPublishing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isUploading ? 'Uploading...' : isPublishing ? 'Publishing...' : 'Processing...'}
+                  Publishing to Nostr...
+                </>
+              ) : isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
                 </>
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  Publish Vlog
+                  Publish Vlog to Nostr
                 </>
               )}
             </Button>

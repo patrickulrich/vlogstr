@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -152,7 +152,9 @@ export function CommentModal({ open, onOpenChange, event }: CommentModalProps) {
             <MessageCircle className="h-5 w-5" />
             Comments
           </DialogTitle>
-          <p className="text-sm text-muted-foreground truncate">{videoTitle}</p>
+          <DialogDescription className="text-sm text-muted-foreground truncate">
+            {videoTitle}
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 pr-4">

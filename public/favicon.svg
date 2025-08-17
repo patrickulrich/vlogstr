@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- This matches the Lucide VideoIcon design -->
+  <rect x="2" y="7" width="14" height="10" rx="2" stroke="black" stroke-width="2" fill="white"/>
+  <path d="M16 11L22 7V17L16 13" stroke="black" stroke-width="2" stroke-linejoin="round" fill="white"/>
+</svg>
