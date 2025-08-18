@@ -31,7 +31,10 @@ Vlogstr is a censorship-resistant, decentralized video sharing platform that emp
 - **Modal Comments**: Comments open in elegant modal overlays (NIP-22/1111)
 - **Optimistic Updates**: Instant feedback for comments and reactions
 - **Real Nostr Reactions**: NIP-25 compliant like system with heart animations
-- **Share Dialogs**: Comprehensive sharing with copy link, social media, and QR codes
+- **Advanced Share Modal**: Three-way sharing system:
+  - **Copy to Clipboard**: Quick link copying with visual feedback
+  - **Share to Nostr**: Compose and publish kind 1 notes with helper buttons for video URL, MP4 link, and Nostr event identifier
+  - **Share via DM**: Send encrypted direct messages to npubs or select from following list
 - **Follow System**: Follow creators and curate your personal feed
 
 ### ⚡ **Lightning Integration**
@@ -158,11 +161,13 @@ Video uploads use Blossom servers for decentralized file storage. The app automa
 
 ### NIPs Implemented
 - **NIP-01**: Basic protocol flow
+- **NIP-04**: Encrypted direct messages (legacy)
 - **NIP-05**: DNS-based verification
 - **NIP-07**: Browser extension signing
-- **NIP-19**: Bech32 identifiers (npub, note, naddr, etc.)
+- **NIP-19**: Bech32 identifiers (npub, note, naddr, nevent, etc.)
 - **NIP-22**: Comment threads
 - **NIP-25**: Reactions
+- **NIP-44**: Versioned encryption for direct messages
 - **NIP-57**: Lightning zaps
 - **NIP-94**: File metadata
 

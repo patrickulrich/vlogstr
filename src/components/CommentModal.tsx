@@ -5,9 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostr } from '@nostrify/react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useComments } from '@/hooks/useComments';
+import { usePostComment } from '@/hooks/usePostComment';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { formatDistanceToNow } from 'date-fns';
@@ -45,101 +44,32 @@ function CommentItem({ comment }: { comment: NostrEvent }) {
   );
 }
 
-function useComments(eventId: string) {
-  const { nostr } = useNostr();
-
-  return useQuery({
-    queryKey: ['comments', eventId],
-    queryFn: async (c) => {
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(3000)]);
-      const events = await nostr.query([
-        {
-          kinds: [1, 1111],
-          '#e': [eventId],
-          limit: 100,
-        }
-      ], { signal });
-      
-      return events.sort((a, b) => a.created_at - b.created_at);
-    },
-    enabled: !!eventId,
-  });
-}
 
 export function CommentModal({ open, onOpenChange, event }: CommentModalProps) {
   const { user, metadata } = useCurrentUser();
-  const { mutate: publishEvent } = useNostrPublish();
-  const { data: comments, isLoading } = useComments(event.id);
+  const { data: commentsData, isLoading } = useComments(event);
+  const { mutate: postComment, isPending } = usePostComment();
   const [commentText, setCommentText] = useState('');
-  const queryClient = useQueryClient();
 
   const userDisplayName = metadata?.display_name || metadata?.name || (user ? genUserName(user.pubkey) : '');
   const userProfileImage = metadata?.picture;
 
-  // Mutation for posting comments with optimistic updates
-  const postComment = useMutation({
-    mutationFn: async (content: string) => {
-      if (!user) throw new Error('User not logged in');
-      
-      publishEvent({
-        kind: 1111,
-        content: content.trim(),
-        tags: [
-          ['e', event.id, '', 'reply'],
-          ['p', event.pubkey],
-        ],
-      });
-    },
-    onMutate: async (content: string) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['comments', event.id] });
-
-      // Snapshot the previous value
-      const previousComments = queryClient.getQueryData<NostrEvent[]>(['comments', event.id]);
-
-      // Optimistically update to the new value
-      if (user) {
-        const optimisticComment: NostrEvent = {
-          id: `temp-${Date.now()}`,
-          pubkey: user.pubkey,
-          created_at: Math.floor(Date.now() / 1000),
-          kind: 1111,
-          content: content.trim(),
-          tags: [
-            ['e', event.id, '', 'reply'],
-            ['p', event.pubkey],
-          ],
-          sig: '',
-        };
-
-        queryClient.setQueryData<NostrEvent[]>(['comments', event.id], (old) => {
-          if (!old) return [optimisticComment];
-          return [...old, optimisticComment];
-        });
-      }
-
-      // Return a context object with the snapshotted value
-      return { previousComments };
-    },
-    onError: (err, newComment, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      queryClient.setQueryData(['comments', event.id], context?.previousComments);
-    },
-    onSettled: () => {
-      // Always refetch after error or success to sync with server
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['comments', event.id] });
-      }, 1000);
-    },
-  });
+  // Get top-level comments from the NIP-22 compliant hook
+  const comments = commentsData?.topLevelComments || [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!user || !commentText.trim()) return;
 
-    postComment.mutate(commentText);
-    setCommentText('');
+    postComment(
+      { content: commentText.trim(), root: event },
+      {
+        onSuccess: () => {
+          setCommentText('');
+        },
+      }
+    );
   };
 
   const videoTitle = event.tags.find(([name]) => name === 'title')?.[1] || 'Video';
@@ -199,11 +129,11 @@ export function CommentModal({ open, onOpenChange, event }: CommentModalProps) {
                   <Button 
                     type="submit" 
                     size="sm" 
-                    disabled={!commentText.trim() || postComment.isPending}
+                    disabled={!commentText.trim() || isPending}
                     className="gap-2"
                   >
                     <Send className="h-4 w-4" />
-                    {postComment.isPending ? 'Sending...' : 'Comment'}
+                    {isPending ? 'Sending...' : 'Comment'}
                   </Button>
                 </div>
               </div>
