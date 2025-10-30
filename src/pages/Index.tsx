@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Video, Heart, Users, Zap, Play, ArrowRight, Sparkles, Globe } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Video, Heart, Users, Zap, Play, ArrowRight, Sparkles, Globe, AlertCircle } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSEO } from '@/hooks/useSEO';
 import { StructuredData } from '@/components/StructuredData';
@@ -29,6 +30,32 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       <StructuredData data={[generateWebsiteSchema(), generateOrganizationSchema()]} />
+
+      {/* Deprecation Notice */}
+      <div className="bg-yellow-500/10 border-b border-yellow-500/20 py-3">
+        <div className="container mx-auto px-6">
+          <Alert className="border-0 bg-transparent p-0">
+            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500" />
+            <AlertDescription className="ml-2 text-sm font-medium">
+              <span className="text-yellow-800 dark:text-yellow-300">
+                This project is being deprecated.
+              </span>{' '}
+              <span className="text-muted-foreground">
+                For a maintained NIP-71 video events client, check out{' '}
+              </span>
+              <a
+                href="https://nostr.blue"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-yellow-700 dark:text-yellow-400 hover:underline font-semibold"
+              >
+                nostr.blue
+              </a>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Pattern */}
